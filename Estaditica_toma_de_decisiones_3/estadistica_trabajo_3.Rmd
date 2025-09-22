@@ -225,6 +225,23 @@ rotacion %>%
   mutate(Proporción = n / sum(n))
 
 ```
+<ul>
+
+1. Variables Categóricas
+
+<li>Rotación: Esta es la variable de interés principal. Es una variable binaria con las categorías "Si" y "No". Un análisis de su distribución muestra la proporción de empleados que han abandonado la empresa</li>
+<br>
+<li>Distribución: Hay 1470 observaciones en total. La mayoría de los empleados no han rotado (83.9%), mientras que una porción menor (16.1%) sí lo ha hecho.</li>
+<br>
+<li>Departamento: Esta variable muestra la distribución de empleados por departamento.Distribución: El departamento de Investigación y Desarrollo (IyD) tiene la mayor cantidad de empleados (653), seguido por Ventas (446) y, en menor medida, Recursos Humanos (63).</li>
+<li>Cargo: Esta variable desglosa los roles dentro de la compañía.Distribución: Los roles más comunes son el de Ejecutivo de Ventas (32.3%) y el de Investigador Científico (19.8%). El rol de Director de Investigación tiene la menor representación (2.7%).</li>
+<br>
+<li>Horas_Extra:La mayoría de los empleados (71.8%) no trabaja horas extra, mientras que el 28.2% restante sí lo hace.</li>
+<br>
+<li>Viaje de Negocios: Muestra la frecuencia con la que los empleados viajan por trabajo.Distribución: La categoría "Raramente" es la más frecuente (70.9%), lo que sugiere que la mayoría de los empleados no viaja con frecuencia.</li>
+</ul>
+
+
 ```{r}
 
 # Variables cuantitativas
@@ -238,6 +255,24 @@ hist(rotacion$Ingreso_Mensual, main = "Distribución del Ingreso Mensual", xlab 
 hist(rotacion$Antigüedad, main = "Distribución de la Antigüedad", xlab = "Antigüedad", col = "salmon")
 
 ```
+<ul>
+
+1. Variables Categóricas
+<li>Edad:La edad promedio es de 36.9 años, con una desviación estándar de 9.14 años. El 50% de los empleados tiene entre 30 y 43 años. El empleado más joven tiene 18 años y el mayor 60 años.</li>
+<br>
+<li>Ingreso_Mensual:El ingreso promedio es de $6,503 USD, con una desviación estándar considerable de $4,708 USD. La mediana es de $4,919 USD, lo que indica que la mitad de los empleados gana menos de esta cantidad. El ingreso mínimo es de $1,009 USD y el máximo de $19,999 USD.</li>
+<br>
+<li>Antigüedad:La antigüedad media es de 7 años, con una mediana de 5 años. La mayoría de los empleados ha estado en la empresa durante un período corto, aunque hay valores atípicos que llegan hasta los 40 años, lo que sugiere una alta retención en algunos casos.</li>
+<br>
+<li>Años_acargo_con_mismo_jefe:a media es de 4.12 años, con una mediana de 3 años, lo que indica que, en general, los empleados cambian de jefe con cierta frecuencia o tienen una antigüedad relativamente baja en el mismo puesto de supervisión.</li>
+<br>
+<li>Años_Experiencia: La media de experiencia es de 11.28 años, con una mediana de 10 años. Esto sugiere que la mayoría de los empleados de la empresa son trabajadores con experiencia en el mercado laboral.</li>
+<br>
+<li>Distancia_Casa:La distancia promedio es de 9.19 kilómetros, con una mediana de 7 kilómetros. Los valores varían desde 1 hasta 29 kilómetros, lo que indica una amplia dispersión en la ubicación de residencia de los empleados.</li>
+
+</ul>
+
+
 <h2>Analisis  Bivariado (relaciones con Rotación)</h2>
 ```{r}
 # Boxplot: Edad vs. Rotación
