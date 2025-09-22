@@ -1,0 +1,425 @@
+---
+title: "trabajo_estadistica_2-1"
+author: "jose_munevar"
+date: "2025-08-31"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r include=FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(sf) # Para trabajar con datos espaciales
+library(leaflet) # Para mapas interactivos
+library(htmlwidgets)
+library(skimr)
+vivienda_exportada <- read_csv("C:/Users/josel/OneDrive/Documentos/estadistica_para_la_toma_de_deciones_2/vivienda_exportada.csv")
+View(vivienda_exportada)
+
+
+```
+
+
+<h2>Paso 1: Filtro a la Base de Datos y Mapeo</h2>
+<p>En esta sección podemos ver el filtro de las  las ofertas de casas, de la zona norte de la ciudad además 
+de asegurarnos que estén ubicados en el mapa en la zona norte de Cali.</p>
+
+
+```{r}
+# --- 1. Filtro de la Base de Datos ---
+
+# Filtrar para obtener solo casas en la Zona Norte
+
+casas_norte <- vivienda_exportada %>%
+  filter(tipo == "Casa", zona == "Zona Norte")
+
+# Presentar los primeros 3 registros
+print("Primeros 3 registros de casas en la Zona Norte:")
+head(casas_norte, 3)
+
+# Tablas para comprobar la consulta
+print("Verificación de 'tipo' en la base filtrada:")
+table(casas_norte$tipo)
+
+print("Verificación de 'zona' en la base filtrada:")
+table(casas_norte$zona)
+
+# --- Mapeo de las propiedades ---
+# Crear un mapa interactivo con leaflet
+mapa_casas <- leaflet(data = casas_norte) %>%
+  addTiles() %>% # Añade el mapa base por defecto
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    popup = ~paste("Barrio:", barrio, "<br>", "Precio:", preciom, "M"),
+    radius = 5,
+    stroke = FALSE,
+    fillOpacity = 0.8
+  ) %>%
+  addControl("Casas en Venta - Zona Norte", position = "topright")
+
+# Mostrar el mapa
+mapa_casas
+
+```
+
+
+<h2>Análsis exploratorio para entender los datos</h2>
+
+```{r}
+
+# Ver las primeras filas para asegurarnos que cargó correctamente
+head(vivienda_exportada)
+
+```
+
+```{r}
+# Contar el número total de filas completamente duplicadas
+numero_duplicados <- sum(duplicated(vivienda_exportada))
+
+print(paste("Se encontraron", numero_duplicados, "filas completamente duplicadas."))
+```
+
+```{r}
+# Contar los NAs en la columna 'parqueaderos'
+na_parqueaderos <- sum(is.na(vivienda_exportada$parqueaderos))
+
+# Calcular el porcentaje de NAs
+porcentaje_na <- (na_parqueaderos / nrow(vivienda_exportada)) * 100
+
+print(paste("Número de valores faltantes en 'parqueaderos':", na_parqueaderos))
+print(paste("Porcentaje de valores faltantes:", round(porcentaje_na, 4), "%"))
+```
+```{r}
+
+# Imputar NAs con la media en todas las columnas numéricas
+vivienda_exportada <- vivienda_exportada %>%
+  mutate(across(where(is.numeric),
+                ~ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+# Verificar que ya no hay NAs en las columnas numéricas
+# El resultado debería ser 0 para las columnas que eran numéricas.
+sapply(vivienda_exportada, function(x) sum(is.na(x)))
+
+```
+
+<h3>Analizar los  datos faltantes</h3>
+
+```{r}
+#identificación de datos faltantes
+colSums(is.na(vivienda_exportada))   # NA por columna
+
+```
+
+
+```{r}
+
+summary(vivienda_exportada)
+
+```
+
+
+```{r}
+
+# Ver tipos de variables, valores faltantes, etc.
+
+skimr::skim(vivienda_exportada)
+
+```
+
+<h2>Paso 3: Estimación del Modelo de Regresión</h2>
+
+```{r}
+# --- 3. Modelo de Regresión Lineal Múltiple ---
+
+# Ajustar el modelo
+modelo_casas_norte <- lm(preciom ~ areaconst + estrato + habitaciones + parqueaderos + banios, data = casas_norte)
+
+# Ver el resumen del modelo con los coeficientes, significancia y R^2
+summary(modelo_casas_norte)
+
+```
+<p>El modelo de regresión lineal múltiple muestra que todas las variables incluidas tienen un efecto estadísticamente significativo sobre el precio de las viviendas. En primer lugar, el área construida presenta un coeficiente positivo (0.67), lo que indica que por cada metro cuadrado adicional el precio de la vivienda aumenta en promedio 0.67 millones. De manera similar, el estrato evidencia un impacto notable: un incremento de una unidad en estrato se asocia con un aumento de 80.6 millones en el precio, lo cual resulta coherente, dado que los estratos más altos suelen corresponder a zonas de mayor valorización.
+<br>
+Las características internas de la vivienda también son relevantes: cada habitación adicional incrementa el precio en 7.6 millones, cada parqueadero en 24 millones y cada baño en 18.9 millones, todos estadísticamente significativos. Estos resultados son lógicos, pues reflejan cómo la mayor comodidad y funcionalidad de una vivienda se traduce en un mayor valor de mercado.
+<br>
+Respecto al ajuste del modelo, el R² de 0.60 indica que aproximadamente el 60% de la variabilidad en el precio de las viviendas es explicada por las variables incluidas. Aunque se trata de un nivel de ajuste moderadamente bueno, todavía queda un 40% de variación sin explicar, lo que sugiere que existen otros factores relevantes que no están considerados, tales como la ubicación exacta del inmueble, la antigüedad de la construcción, la calidad de los acabados o la proximidad a servicios urbanos.
+</p>
+<h2>Paso 4: Validación de Supuestos del Modelo</h2>
+
+
+```{r}
+
+
+
+plot(modelo_casas_norte, which = 1)  # Residuals vs Fitted
+
+
+
+```
+<p>El gráfico sugiere que el modelo no cumple plenamente el supuesto de linealidad y homocedasticidad. Aunque en general los residuos se agrupan en torno a 0, se observa:</p>
+
+<p>Tendencia leve no lineal.</p>
+
+<p>Varianza creciente de los residuos con el precio ajustado.</p>
+
+<p>Presencia de algunos outliers influyentes.</p> 
+
+
+```{r}
+plot(modelo_casas_norte, which = 2)  # Q-Q plot
+
+```
+<p>la gráfico Q-Q muestra que los residuos no cumplen totalmente el supuesto de normalidad. Aunque en los valores centrales la aproximación es aceptable, en las colas se observan desviaciones importantes y la presencia de valores extremos.</p>
+
+```{r}
+
+plot(modelo_casas_norte, which = 3)  # Scale-Location
+```
+<p>En este gráfico se puede evidencia que no se cumple la homocedasticidad. Los errores presentan mayor variabilidad a medida que aumenta el precio ajustado. Esto significa que el modelo predice peor (menos confiable) en inmuebles de mayor precio.</p>
+
+```{r}
+
+plot(modelo_casas_norte, which = 5)  # Residuals vs Leverage
+
+```
+
+<p>Este gráfico indica que el modelo tiene algunas observaciones influyentes, que podrían estar distorsionando los resultados. Aunque la mayoría de los puntos se comportan bien, unos pocos extremos podrían estar sesgando los coeficientes y las pruebas de significancia.</p>
+
+
+
+<h2>Paso 5: Predicción del Precio para la Vivienda Solicitada</h2>
+
+```{r}
+# --- 5. Predicción del Precio ---
+
+# Crear un dataframe con las características de la vivienda 1
+vivienda_1_solicitud <- data.frame(
+  areaconst = 200,
+  estrato = 5,       # Probamos con estrato 5
+  habitaciones = 4,
+  parqueaderos = 1,
+  banios = 2
+)
+
+# Predecir el precio
+precio_predicho_est5 <- predict(modelo_casas_norte, newdata = vivienda_1_solicitud)
+print(paste("Precio predicho para vivienda estrato 5: $", round(precio_predicho_est5, 2), "millones"))
+
+# Ahora con estrato 4
+vivienda_1_solicitud$estrato <- 4
+precio_predicho_est4 <- predict(modelo_casas_norte, newdata = vivienda_1_solicitud)
+print(paste("Precio predicho para vivienda estrato 4: $", round(precio_predicho_est4, 2), "millones"))
+
+```
+<h2>Paso 6: Sugerencia de Ofertas Potenciales</h2>
+```{r}
+# --- 6. Búsqueda y Visualización de Ofertas Potenciales ---
+
+credito_maximo <- 350
+
+# Filtrar ofertas que cumplan con los criterios y estén dentro del presupuesto
+ofertas_sugeridas <- casas_norte %>%
+  filter(
+    preciom <= credito_maximo,
+    estrato %in% c(4, 5),
+    areaconst >= 150, # Relajamos un poco el área para encontrar opciones
+    habitaciones >= 3,
+    parqueaderos >= 1
+  ) %>%
+  arrange(desc(preciom)) %>% # Ordenar de mayor a menor precio
+  head(5) # Tomar las 5 mejores
+
+print("Las 5 mejores ofertas potenciales encontradas:")
+print(ofertas_sugeridas)
+
+# Crear un mapa con las ofertas sugeridas
+mapa_ofertas <- leaflet(data = ofertas_sugeridas) %>%
+  addTiles() %>%
+  addMarkers(
+    ~longitud, ~latitud,
+    popup = ~paste(
+      "<b>Barrio:</b>", barrio, "<br>",
+      "<b>Precio:</b>", preciom, "M<br>",
+      "<b>Área:</b>", areaconst, "m²<br>",
+      "<b>Estrato:</b>", estrato
+    )
+  ) %>%
+  addControl("Top 5 Ofertas (< 350M)", position = "topright")
+
+# Mostrar el mapa
+mapa_ofertas
+```
+
+7. replicando el ejercicio para la segunda vivienda
+
+```{r}
+
+# --- 1. Filtro de la Base de Datos (Vivienda 2) ---
+
+# Filtrar para obtener solo apartamentos en la Zona Sur
+aptos_sur <- vivienda_exportada %>%
+  filter(tipo == "Apartamento", zona == "Zona Sur")
+
+# Presentar los primeros 3 registros
+print("Primeros 3 registros de apartamentos en la Zona Sur:")
+head(aptos_sur, 3)
+
+# Tablas para comprobar la consulta
+print("Verificación de 'tipo' en la base filtrada:")
+table(aptos_sur$tipo)
+
+print("Verificación de 'zona' en la base filtrada:")
+table(aptos_sur$zona)
+
+# --- Mapeo de las propiedades (Vivienda 2) ---
+mapa_aptos <- leaflet(data = aptos_sur) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    ~longitud, ~latitud,
+    popup = ~paste("Barrio:", barrio, "<br>", "Precio:", preciom, "M"),
+    radius = 5,
+    stroke = FALSE,
+    fillOpacity = 0.8
+  ) %>%
+  addControl("Apartamentos en Venta - Zona Sur", position = "topright")
+
+# Mostrar el mapa
+mapa_aptos
+
+```
+
+<h2>Paso 2: Análisis Exploratorio de Datos</h2>
+
+```{r}
+# --- 2. Análisis Exploratorio de Datos (EDA - Vivienda 2) ---
+
+# Matriz de correlación
+cor_data_aptos <- aptos_sur %>%
+  select(preciom, areaconst, estrato, banios, habitaciones) %>%
+  na.omit()
+
+matriz_cor_aptos <- cor(cor_data_aptos)
+print("Matriz de Correlación (Apartamentos Zona Sur):")
+print(round(matriz_cor_aptos, 2))
+
+# Gráfico interactivo: Precio vs. Área Construida
+plot_area_aptos <- plot_ly(data = aptos_sur, x = ~areaconst, y = ~preciom, type = 'scatter', mode = 'markers') %>%
+  layout(
+    title = "Precio vs. Área Construida en la Zona Sur",
+    xaxis = list(title = "Área Construida (m²)"),
+    yaxis = list(title = "Precio (Millones COP)")
+  )
+
+# Gráfico interactivo: Precio vs. Estrato
+plot_estrato_aptos <- plot_ly(data = aptos_sur, x = ~factor(estrato), y = ~preciom, type = 'box') %>%
+  layout(
+    title = "Distribución del Precio por Estrato en la Zona Sur",
+    xaxis = list(title = "Estrato"),
+    yaxis = list(title = "Precio (Millones COP)")
+  )
+
+# Mostrar los gráficos
+plot_area_aptos
+plot_estrato_aptos
+```
+
+<h2>Paso 3: Estimación del Modelo de Regresión Lineal Múltiple</h2>
+```{r}
+
+# --- 3. Modelo de Regresión Lineal Múltiple (Vivienda 2) ---
+
+# Ajustar el modelo para los apartamentos de la zona sur
+# Nota: Es importante remover NAs de las variables predictoras para que el modelo corra
+aptos_sur_modelo <- aptos_sur %>%
+  filter(!is.na(parqueaderos))
+
+modelo_aptos_sur <- lm(preciom ~ areaconst + estrato + habitaciones + parqueaderos + banios, data = aptos_sur_modelo)
+
+# Ver el resumen del modelo
+summary(modelo_aptos_sur)
+
+```
+<h2>Paso 4: Validación de Supuestos del Modelo</h2>
+
+```{r}
+# --- 4. Validación de Supuestos (Vivienda 2) ---
+
+# Generar los 4 gráficos de diagnóstico estándar
+par(mfrow = c(2, 2))
+plot(modelo_aptos_sur)
+par(mfrow = c(1, 1))
+
+```
+
+<h2>Paso 5: Predicción del Precio para la Vivienda Solicitada</h2>
+
+```{r}
+# --- 5. Predicción del Precio (Vivienda 2) ---
+
+# Crear un dataframe con las características de la vivienda 2
+vivienda_2_solicitud <- data.frame(
+  areaconst = 300,
+  estrato = 6,       # Probamos con estrato 6
+  habitaciones = 5,
+  parqueaderos = 3,
+  banios = 3
+)
+
+# Predecir el precio
+precio_predicho_v2_est6 <- predict(modelo_aptos_sur, newdata = vivienda_2_solicitud)
+print(paste("Precio predicho para vivienda estrato 6: $", round(precio_predicho_v2_est6, 2), "millones"))
+
+# Ahora con estrato 5
+vivienda_2_solicitud$estrato <- 5
+precio_predicho_v2_est5 <- predict(modelo_aptos_sur, newdata = vivienda_2_solicitud)
+print(paste("Precio predicho para vivienda estrato 5: $", round(precio_predicho_v2_est5, 2), "millones"))
+```
+<h2>Paso 6: Sugerencia de Ofertas Potenciales</h2>
+
+```{r}
+
+# --- 6. Búsqueda y Visualización de Ofertas Potenciales (Vivienda 2) ---
+
+credito_maximo_v2 <- 850
+
+# Filtrar ofertas que cumplan con los criterios y estén dentro del presupuesto
+ofertas_sugeridas_v2 <- aptos_sur %>%
+  filter(
+    preciom <= credito_maximo_v2,
+    estrato %in% c(5, 6),
+    areaconst >= 250, # Relajamos un poco el área (ej. 300 * 0.8)
+    habitaciones >= 4,
+    parqueaderos >= 3
+  ) %>%
+  arrange(desc(preciom)) %>%
+  head(5)
+
+print("Las 5 mejores ofertas potenciales encontradas para la Vivienda 2:")
+print(ofertas_sugeridas_v2)
+
+# Crear un mapa con las ofertas sugeridas
+if (nrow(ofertas_sugeridas_v2) > 0) {
+  mapa_ofertas_v2 <- leaflet(data = ofertas_sugeridas_v2) %>%
+    addTiles() %>%
+    addMarkers(
+      ~longitud, ~latitud,
+      popup = ~paste(
+        "<b>Barrio:</b>", barrio, "<br>",
+        "<b>Precio:</b>", preciom, "M<br>",
+        "<b>Área:</b>", areaconst, "m²<br>",
+        "<b>Estrato:</b>", estrato
+      )
+    ) %>%
+    addControl("Top 5 Ofertas (< 850M)", position = "topright")
+    
+  # Mostrar el mapa
+  mapa_ofertas_v2
+} else {
+  print("No se encontraron ofertas que coincidan con los criterios de búsqueda.")
+}
+```
+

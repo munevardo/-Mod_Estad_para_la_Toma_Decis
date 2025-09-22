@@ -1,0 +1,264 @@
+---
+title: "Estadistica_trabajo_3"
+author: "jose_munevar y Meidy Lizeth Moreno"
+date: "2025-09-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(readr)
+library(dplyr)
+library(plotly)
+library(sf) # Para trabajar con datos espaciales
+library(leaflet) # Para mapas interactivos
+library(htmlwidgets)
+library(skimr)
+library(GGally)
+
+library(paqueteMODELOS)
+data("rotacion")
+
+```
+
+```{r}
+library(paqueteMODELOS)
+library(dplyr)
+data("rotacion")
+glimpse(rotacion)
+```
+<h1>Análsis exploratorio de datos</h1>
+
+```{r}
+summary(rotacion)
+```
+
+
+```{r}
+head(rotacion)
+```
+
+```{r}
+tail(rotacion)
+```
+
+```{r}
+skimr::skim(rotacion)
+```
+
+
+<h2>Identificación de duplicados</h2>
+
+```{r}
+
+# Contar el número total de filas completamente duplicadas
+numero_duplicados <- sum(duplicated(rotacion))
+
+print(paste("Se encontraron", numero_duplicados, "filas completamente duplicadas."))
+
+```
+
+<h2>Identifcación de columnas en y celdas vacías</h2>
+
+```{r}
+# Total de NA en el dataset
+sum(is.na(rotacion))
+
+# NA por columna
+colSums(is.na(rotacion))
+
+# Filas con NA
+rotacion[!complete.cases(rotacion), ]
+
+
+```
+
+```{r}
+
+# Total de cadenas vacías
+sum(rotacion == "", na.rm = TRUE)
+
+# Por columna
+sapply(rotacion, function(x) sum(x == "", na.rm = TRUE))
+
+
+```
+
+
+
+```{r}
+
+# Inf o -Inf
+sum(is.infinite(as.matrix(rotacion)))
+
+# NaN
+sum(is.nan(as.matrix(rotacion)))
+
+
+```
+Al parecer el Datframe está bastante integro, no presentar datos faltantes.
+
+<h2>Definición de las hipótesis<h2>
+
+<h3>1. Variables categóricas</h3>
+
+<ul>
+<li><strong>Departamento/Área:</strong> La rotación puede variar según el área de trabajo (hipótesis: algunos departamentos tienen mayor desgaste).</li>
+
+<li><strong>Nivel educativo: </strong>Empleados con menor nivel educativo podrían tener más rotación por mejores oportunidades externas o menor estabilidad.</li>
+
+<li><strong>Estado civil:</strong> Personas solteras podrían cambiar más de empleo que las casadas (hipótesis sobre estabilidad personal).</li>
+
+</ul>
+
+<h3>2. Variables cuantitativas</h3>
+
+<ul>
+<li><strong>Edad:</strong> Podría haber una relación no lineal: jóvenes rotan más, adultos medios menos, cercanos a jubilación otra vez más.</li>
+
+<li><strong>Años de experiencia en la empresa:</strong> Mayor antigüedad suele estar asociada con menor rotación.</li>
+
+<li><strong>Ingreso Mensual: </strong>Un salario más bajo puede estar vinculado con mayor rotación.</li>
+</ul>
+
+
+<h3>Variables Cuantitativas</h3>
+
+```{r}
+
+boxplot(Edad ~ Rotación, 
+        data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Edad según Rotación",
+        xlab = "Rotación",
+        ylab = "Edad")
+
+```
+<p>En este gráfico podemos comparar el grupo con rotación contra el grupo sin rotación en verde, en el grupo con rotación tenemos una media alrededor de <strong>35 años</strong>,con un rango intercuartil entre 31 y 42 años; por otro lado en el grupo con rotación en caja verde una media cercana de 32-33 años, ligeramente más baja con un rango intercuartil entre 29 y 38 años y algunos outliers cerca de 55-67 años. Esto nos muestra que el grupo con rotación suele ser más joven, en promedio que el que tiene rotación, además se puede apoyar nuestra hipótesis al ver que a menor edad hay una mayor edad de rotación.</p>
+
+```{r}
+
+boxplot(Ingreso_Mensual ~ Rotación, 
+        data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Edad según Rotación",
+        xlab = "Rotación",
+        ylab = "Ingreso Mensual")
+
+```
+<p>En este gráfico podemos identificar que la media de ingresos de las personas con rotación está cerca de los 5000 USD, mientras que la media de los empleados que rotan está por los 4000 USD más bajo. los empleados con mayores ingresos suelen quedarse en la compañía, esto se ve reforzado por los rangos intercuartiles, que los empleados que no rotan está entre 3,500 y 9000 USD mientras que los rangos de los empleados con rotación están entre 3000 y 6000 USD, sin embargo hay casos en donde algunos outliers aún con grandes ingresos deciden abandonar la compañía.</p>
+
+```{r}
+
+boxplot(Años_Experiencia ~ Rotación, 
+        data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Años de Experiencia según Rotación",
+        xlab = "Rotación",
+        ylab = "Ingreso Mensual",
+        yaxt = "n'")
+
+# Personalizamos el eje Y con saltos de 1 en 1
+axis(side = 2, at = seq(0, max(rotacion$Años_Experiencia, na.rm = TRUE), by = 1))
+```
+<p>En este gráfico podemos identificar la relación entre rotación  y años de experiencia la media entre los empleados que no rotan es 8 años, mientras que la media entre los empleados que si lo hacen es apenas 5 años, así mismo el ranto intercuartil de los empleados que si rotan es entre 5 y 12 años y los que si lo hacen es de 3 y 8 años aquí tenemos una relación esperada se observa que los empleados con menos años de experiencia tienden a rotar más.</p>
+
+<h3>Variables Cuantitativas</h3>
+
+```{r}
+
+# Edad según Departamento
+boxplot(Edad ~ Departamento, data = rotacion,
+        col = "skyblue",
+        main = "Distribución de Edad según Departamento",
+        xlab = "Departamento", ylab = "Edad")
+```
+<p>De este gráfico podemos identificar que recursos humanos, tiende a tener empleados un poco mayores en promedio que los otros departamentos. Ventas agrupa perfiles más jóvenes, lo que puede asociarse con mayor rotación o menor estabilidad, lo que pudimos ver en nuestra hipotesis inicial, IyD está en un punto intermedio, con un rango similar al de RH pero con mediana más baja.</p>
+
+```{r}
+
+# Ingreso mensual según Nivel educativo
+boxplot(Ingreso_Mensual ~ Cargo, data = rotacion,
+        col = "lightgreen",
+        main = "Distribución de Ingreso según Nivel Educativo",
+        xlab = "Cargo", ylab = "Ingreso Mensual")
+
+```
+<p>Existe una relación clara y positiva entre el nivel de responsabilidad del cargo y el ingreso mensual. Los cargos de Director de Investigación y Gerente tienen los ingresos más altos y la menor variabilidad salarial, lo que refleja una estructura de compensación más definida para roles de liderazgo.</p>
+
+```{r}
+
+# Años de experiencia según Estado Civil
+boxplot(Años_Experiencia ~ Estado_Civil, data = rotacion,
+        col = "lightpink",
+        main = "Distribución de Experiencia según Estado Civil",
+        xlab = "Estado Civil", ylab = "Años de Experiencia")
+
+
+```
+<p>Casados y divorciados muestran más experiencia acumulada en comparación con los solteros, Solteros tienen más variabilidad: muchos con poca experiencia y unos pocos con mucha, lo que puede reflejar diferentes etapas en su carrera. Esto puede estar alineado con la hipótesis: Personas casadas/divorciadas suelen tener mayor estabilidad laboral (y más años acumulados), Personas solteras tienden a estar en etapas más tempranas de su carrera, por lo que muestran menos experiencia en general y podrían tener más rotación.</p>
+
+<h2>Analisis Univariado</h2>
+<p>Variables categoricas</p>
+```{r}
+# Variables categóricas
+# Frecuencia de la variable de rotación
+rotacion %>%
+  count(Rotación) %>%
+  mutate(Proporción = n / sum(n))
+
+# Frecuencia de la variable Departamento
+rotacion %>%
+  count(Departamento) %>%
+  mutate(Proporción = n / sum(n))
+
+# Frecuencia de la variable Cargo
+rotacion %>%
+  count(Cargo) %>%
+  mutate(Proporción = n / sum(n))
+
+# Frecuencia de la variable Horas_Extra
+rotacion %>%
+  count(Horas_Extra) %>%
+  mutate(Proporción = n / sum(n))
+
+```
+```{r}
+
+# Variables cuantitativas
+# Histograma de la Edad
+hist(rotacion$Edad, main = "Distribución de la Edad", xlab = "Edad", col = "skyblue")
+
+# Histograma del Ingreso_Mensual
+hist(rotacion$Ingreso_Mensual, main = "Distribución del Ingreso Mensual", xlab = "Ingreso Mensual", col = "lightgreen")
+
+# Histograma de la Antigüedad
+hist(rotacion$Antigüedad, main = "Distribución de la Antigüedad", xlab = "Antigüedad", col = "salmon")
+
+```
+<h2>Analisis  Bivariado (relaciones con Rotación)</h2>
+```{r}
+# Boxplot: Edad vs. Rotación
+boxplot(Edad ~ Rotación, data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Edad según Rotación",
+        xlab = "Rotación",
+        ylab = "Edad")
+
+# Boxplot: Ingreso_Mensual vs. Rotación
+boxplot(Ingreso_Mensual ~ Rotación, data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Ingreso Mensual según Rotación",
+        xlab = "Rotación",
+        ylab = "Ingreso Mensual")
+
+# Boxplot: Años_Experiencia vs. Rotación
+boxplot(Años_Experiencia ~ Rotación, data = rotacion,
+        col = c("skyblue", "lightgreen"),
+        main = "Distribución de Años de Experiencia según Rotación",
+        xlab = "Rotación",
+        ylab = "Años de Experiencia")
+```
+
