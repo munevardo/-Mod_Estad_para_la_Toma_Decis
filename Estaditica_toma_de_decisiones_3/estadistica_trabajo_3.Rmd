@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+install.packages("pROC")
 
 
 library(readr)
@@ -17,6 +18,7 @@ library(leaflet) # Para mapas interactivos
 library(htmlwidgets)
 library(skimr)
 library(GGally)
+library(pROC)
 
 library(paqueteMODELOS)
 data("rotacion")
@@ -123,7 +125,7 @@ Al parecer el Datframe está bastante integro, no presentar datos faltantes.
 <li><strong>Ingreso Mensual: </strong>Un salario más bajo puede estar vinculado con mayor rotación.</li>
 </ul>
 
-
+<h2>1. Selección de variables</h2>
 <h3>Variables Cuantitativas</h3>
 
 ```{r}
@@ -200,7 +202,7 @@ boxplot(Años_Experiencia ~ Estado_Civil, data = rotacion,
 ```
 <p>Casados y divorciados muestran más experiencia acumulada en comparación con los solteros, Solteros tienen más variabilidad: muchos con poca experiencia y unos pocos con mucha, lo que puede reflejar diferentes etapas en su carrera. Esto puede estar alineado con la hipótesis: Personas casadas/divorciadas suelen tener mayor estabilidad laboral (y más años acumulados), Personas solteras tienden a estar en etapas más tempranas de su carrera, por lo que muestran menos experiencia en general y podrían tener más rotación.</p>
 
-<h2>Analisis Univariado</h2>
+<h2>2. Analisis Univariado</h2>
 <p>Variables categoricas</p>
 ```{r}
 # Variables categóricas
@@ -273,7 +275,7 @@ hist(rotacion$Antigüedad, main = "Distribución de la Antigüedad", xlab = "Ant
 </ul>
 
 
-<h2>Analisis  Bivariado (relaciones con Rotación)</h2>
+<h2>3. Analisis  Bivariado (relaciones con Rotación)</h2>
 ```{r}
 # Boxplot: Edad vs. Rotación
 boxplot(Edad ~ Rotación, data = rotacion,
@@ -296,4 +298,64 @@ boxplot(Años_Experiencia ~ Rotación, data = rotacion,
         xlab = "Rotación",
         ylab = "Años de Experiencia")
 ```
+
+```{r}
+# Convertir la variable de respuesta a factor y luego a numérico (0, 1)
+
+rotacion <- rotacion %>%
+  mutate(rotacion_numerica = ifelse(Rotación == "Si", 1, 0))
+
+```
+
+```{r}
+covariables <- c("Edad", "Ingreso_Mensual", "Años_Experiencia",
+                 "Departamento", "Estado_Civil", "Horas_Extra")
+```
+
+<h2>4. Estimación del Modelo de Regresión Logística</h2>
+
+```{r}
+# Ajustar el modelo de regresión logística
+modelo_logistico <- glm(rotacion_numerica ~ Edad + Ingreso_Mensual + 
+                          Años_Experiencia + Departamento + Estado_Civil + 
+                          Horas_Extra,
+                        data = rotacion,
+                        family = binomial(link = "logit"))
+
+summary(modelo_logistico)
+```
+```{r}
+
+# Interpretar los coeficientes usando Odds Ratio (OR)
+# Extraer los coeficientes del modelo y calcular exp(coeficientes)
+or_values <- exp(coef(modelo_logistico))
+or_table <- data.frame(OR = or_values,
+p_value = summary(modelo_logistico)$coefficients[,4])
+
+print("Tabla de Odds Ratios (OR) y p-valores:")
+print(or_table)
+
+```
+<h3><strong>Interpretación de la Tabla </strong></h3>
+<ul>
+<li>Edad: Por cada año adicional de edad, el riesgo de rotación disminuye en un 2.1%. Aunque la relación es negativa, no es estadísticamente significativa (p > 0.05), lo que sugiere que la edad no es un predictor fuerte de la rotación en este modelo.</li>
+<li>Ingreso_Mensual:Por cada dólar adicional en el salario mensual, el riesgo de rotación disminuye, aunque de manera muy leve. Este efecto es altamente significativo (p < 0.05), lo que confirma que el salario tiene una influencia, aunque pequeña, en la rotación.</li>
+<li>Años_Experiencia:Por cada año adicional de experiencia laboral, la probabilidad de rotación disminuye en un 2.2%. Sin embargo, esta relación no es estadísticamente significativa (p > 0.05).</li>
+<li>DepartamentoVentas:Un empleado del departamento de Ventas tiene casi 1.8 veces más probabilidades de rotar que un empleado del departamento de Investigación y Desarrollo (IyD), que es la categoría base. Esta diferencia es altamente significativa (p < 0.05).</li>
+<li>Estado_CivilSoltero:Un empleado soltero tiene 2.3 veces más probabilidades de rotar que un empleado casado (categoría base). Esta relación es altamente significativa (p < 0.05).</li>
+<li>Horas_ExtraSi:Un empleado que trabaja horas extra tiene 4.4 veces más probabilidades de rotar que un empleado que no lo hace. Este es el predictor más fuerte del modelo y es altamente significativo (p < 0.05).</li>
+</ul>
+<br>
+<ul>
+<h3><strong>Conclusiones</strong></h3>
+<li>Horas_Extra: Es el factor más influyente. Los empleados que hacen horas extra tienen más de cuatro veces el riesgo de rotar.</li>
+<li>Estado_Civil: Ser soltero aumenta significativamente el riesgo de rotación en comparación con los empleados casados.</li>
+<li>Departamento: Los empleados del departamento de Ventas tienen un riesgo de rotación casi 1.8 veces mayor que los de IyD.</li>
+<li>Ingreso_Mensual: Un salario más alto reduce ligeramente el riesgo de rotación.</li>
+<li>Las variables Edad y Años_Experiencia no son predictores estadísticamente significativos en este modelo, a pesar de que los odds ratios sugieren una relación negativa.</li>
+</ul>
+
+<h2>Evaluación</h2>
+
+
 
