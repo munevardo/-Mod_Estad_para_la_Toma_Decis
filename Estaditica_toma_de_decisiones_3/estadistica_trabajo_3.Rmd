@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-install.packages("pROC")
+
 
 
 library(readr)
@@ -355,7 +355,76 @@ print(or_table)
 <li>Las variables Edad y Años_Experiencia no son predictores estadísticamente significativos en este modelo, a pesar de que los odds ratios sugieren una relación negativa.</li>
 </ul>
 
-<h2>Evaluación</h2>
+<h2> 5. Evaluación</h2>
+
+```{r}
+# calcular las probabilidades predichas por el modelo
+
+predicciones <- predict(modelo_logistico, type  = "response")
+
+
+# creación del objeto ROC
+
+roc_obj <- roc(rotacion$rotacion_numerica, predicciones)
+
+# Intenta trazar la curva ROC con la configuración más básica
+plot(roc_obj)
+
+# Imprimir el valor del AUC
+print("El valor del AUC es:")
+print(auc(roc_obj))
+
+```
+<p>Según mi curva ROC y la interpretación de mi AUC, que resultó ser 0,76, se considera este como un modelo bastante aceptable siendo suficientemente capaz de predecir si los empleados abandonarán o se quedarán en la compañía</p>
+
+
+<h2>6. Predicciones</h2>
+
+```{r}
+# 1. Definir un individuo hipotético (nuevo data.frame)
+# Asegúrate de que las variables categóricas tengan los mismos niveles que los datos de entrenamiento
+nuevo_empleado <- data.frame(
+  Edad = 28,
+  Ingreso_Mensual = 3500,
+  Años_Experiencia = 3,
+  Departamento = "Ventas",
+  Estado_Civil = "Soltero",
+  Horas_Extra = "Si"
+)
+
+# Para que las variables categóricas sean reconocidas, se convierten a factor
+nuevo_empleado$Departamento <- as.factor(nuevo_empleado$Departamento)
+nuevo_empleado$Estado_Civil <- as.factor(nuevo_empleado$Estado_Civil)
+nuevo_empleado$Horas_Extra <- as.factor(nuevo_empleado$Horas_Extra)
+
+# 2. Realizar la predicción
+# El argumento 'type = "response"' devuelve la probabilidad
+
+probabilidad_rotacion <- predict(modelo_logistico, newdata = nuevo_empleado, type = "response")
+
+# 3. Definir un punto de corte para la estrategia
+punto_corte <- 0.5 # Puedes ajustar este valor según la necesidad de la empresa
+
+# 4. Implementar la estrategia
+if (probabilidad_rotacion >= punto_corte) {
+  estrategia <- "Se recomienda una intervención. El empleado está en alto riesgo de rotar."
+} else {
+  estrategia <- "El empleado no parece estar en alto riesgo de rotar."
+}
+
+# 5. Imprimir los resultados
+print(paste("La probabilidad de rotación para este empleado es:", round(probabilidad_rotacion, 4)))
+print(paste("Estrategia recomendada:", estrategia))
+
+# =========================================================================
+# Ejemplo de salida:
+# "La probabilidad de rotación para este empleado es: 0.65"
+# "Estrategia recomendada: Se recomienda una intervención. El empleado está en alto riesgo de rotar."
+```
+<h2>7. Conclusiones</h2>
+
+
+
 
 
 
